@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+<!-- 17 Dec 2018 - Chhaileng Peng -->
+<meta charset="UTF-8">
+<title>Socket Chat</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="/js/socket.io.js"></script>
+	
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+<!-- Custom Style -->
+<style>
+#messageArea {
+	height: 500px;
+	width: 100%;
+	overflow: auto;
+}
+
+/* Custom Scroll Bar */
+::-webkit-scrollbar {
+	width: 3px;
+}
+
+::-webkit-scrollbar-track {
+	background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #888;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #555;
+}
+
+.avatar {
+	width: 50px;
+	height: 50px;
+	border-radius: 25px;
+	color: white;
+	font-size: 26px;
+	line-height: 45px;
+	text-align: center;
+}
+
+.message {
+	max-width: 80%;
+	min-height: 50px;
+	border-radius: 25px;
+	color: black;
+	font-size: 26px;
+	line-height: 45px;
+	padding-left: 20px;
+	padding-right: 20px;
+}
+
+.incoming, .me {
+	margin: 10px;
+}
+
+.incoming .avatar, .typing .avatar {
+	background-color: #0f6ab4;
+	float: left;
+}
+
+.me .avatar {
+	background-color: #10a54a;
+	float: right;
+}
+
+.incoming .message {
+	background-color: #d7e3f0;
+	float: left;
+	margin-left: 10px;
+}
+
+.me .message {
+	background-color: #c1f3d2;
+	float: right;
+	margin-right: 10px;
+}
+
+.joined {
+	text-align: center;
+	background-color: rgb(176, 255, 229);
+	margin: 10px;
+	border-radius: 10px;
+}
+
+.left {
+	text-align: center;
+	background-color: rgb(255, 152, 174);
+	margin: 10px;
+	border-radius: 10px;
+}
+
+/* Tooltip */
+
+
+</style>
+</head>
+
+<body>
+	<div class="container">
+		<div class="row">
+			<div class="col s12">
+				<h3>Socket Chat</h3>
+				<h5 id="activeUser" style="color: green">0 active user</h5>
+				<h5 style="float: right">Welcome <span id="username"></span>!</h5>
+			</div>
+			<div id="messageArea" class="col s12">
+				<!-- <div class="incoming col s12">
+					<div style="background-color: #f23c00" class="avatar tooltipped" data-position="left" data-tooltip="System">S</div>
+					<div style="background-color: #f23c00; color: white" class="message">Welcome to Socket Chat, have fun!</div>
+				</div> -->
+				
+			</div>
+		</div>
+
+		<div class="row">
+			<div class="input-field col s12">
+				<input id="messageText" type="text" class="validate"> <label for="messageText">Message</label>
+			</div>
+		</div>
+
+		<div class="row" style="text-align: center">
+			<a href="https://www.chhaileng.com" target="_blank" style="font-size: 14px; color: gray">Copyright 2018 Chhaileng</a>
+		</div>
+	</div>
+
+	
+	<script>
+		var username = getUser();
+		
+		var typingTimer;
+		
+		var socketUrl = location.protocol + "//" + location.hostname + ":1111/chat";
+		var socket = io.connect(socketUrl);
+		
+		socket.on("connect", function() {
+			//alert("Connected");
+			$.ajax({
+	            url: "/api/messages",
+	            method:"GET",
+	            success:function (messages) {
+                    messages.forEach(function(message) {
+                    		console.log(message);
+                    		if (message.user.sessionId == socket.id) {
+                    			displayMyMessage(message.message);
+                    		} else {
+                    			displayMessage(message.user.username, message.message);
+                    		}
+                    });
+	            }
+	        })
+		});
+		
+		socket.on("disconnect", function() {
+			//alert("Disconnected");
+		});
+		
+		// Tell everyone, new user joined
+		socket.emit("userJoin", {
+			"sessionId": socket.id,
+			"username": username
+		});
+		
+		// Count number of user
+		socket.on("count", function(count) {
+			$("#activeUser").text(count + " active user" + ((count>1)?"s":""));
+		});
+		
+		// Listen for new message
+		socket.on("newMessage", function(message) {
+			displayMessage(message.user.username, message.message);
+		});
+		
+		// Listen for new user
+		socket.on("newUser", function(user) {
+			displayUserJoinedChat(user.username);
+		});
+		
+		// Listen when user left
+		socket.on("userLeft", function(username) {
+			displayUserLeftChat(username);
+		});
+		
+		// Listen for user typing
+		socket.on("userTyping", function(user) {
+			displayUserTyping(user);
+		});
+		
+		// Listen for when user stop typing
+		socket.on("userStopTyping", function(user) {
+			// remove user typing
+			$("#" + user.sessionId).remove();
+		});
+		
+		$(document).ready(function() {
+			// Set name for user
+			$("#username").text(username);
+			
+			// Tooltip config
+			$('.tooltipped').tooltip();
+			
+			// User send message
+			$("#messageText").keyup(function(e) {
+				socket.emit("userTyping", {
+					"sessionId": socket.id,
+					"username": username
+				});
+				clearTimeout(typingTimer);
+				typingTimer = setTimeout(function() {
+					socket.emit("userStopTyping", {
+						"sessionId": socket.id,
+						"username": username
+					});
+				}, 1000);
+				
+				if(e.keyCode == 13 && $("#messageText").val().trim() != "") {
+					socket.emit("userStopTyping", {
+						"sessionId": socket.id,
+						"username": username
+					});
+					displayMyMessage($("#messageText").val());
+					socket.emit("sendMessage", {
+						"message": $("#messageText").val(),
+						"user": {
+							"sessionId": socket.id,
+							"username": username
+						}
+					});
+					$("#messageText").val("");
+					
+				}
+			});
+		});
+		
+		function displayMyMessage(message) {
+			var div = "<div class='me col s12'>";
+			div +=    "   <div class='avatar tooltipped' data-position='right' data-tooltip='" + username + "'>" + username.charAt(0).toLocaleUpperCase() + "</div>";
+			div +=    "   <div class='message'>" + message + "</div>";
+			div +=    "</div>";
+			
+			$("#messageArea").append(div);
+			$("#messageArea").scrollTop($("#messageArea").prop("scrollHeight"));
+			$('.tooltipped').tooltip();
+		}
+		
+		function displayMessage(from, message) {
+			var div = "<div class='incoming col s12'>";
+			div +=    "   <div class='avatar tooltipped' data-position='left' data-tooltip='" + from + "'>" + from.charAt(0).toLocaleUpperCase() + "</div>";
+			div +=    "   <div class='message'>" + message + "</div>";
+			div +=    "</div>";
+			
+			$("#messageArea").append(div);
+			$("#messageArea").scrollTop($("#messageArea").prop("scrollHeight"));
+			$('.tooltipped').tooltip();
+		}
+		
+		function displayUserJoinedChat(name) {
+			var div = "<div class='joined col s12'>" + name + " joined!</div>"
+			$("#messageArea").append(div);
+			$("#messageArea").scrollTop($("#messageArea").prop("scrollHeight"));
+		}
+		
+		function displayUserLeftChat(name) {
+			var div = "<div class='left col s12'>" + name + " left!</div>"
+			$("#messageArea").append(div);
+			$("#messageArea").scrollTop($("#messageArea").prop("scrollHeight"));
+		}
+		
+		function displayUserTyping(user) {
+			if ($('#' + user.sessionId).length == 0) {
+				var div = "<div id='" + user.sessionId + "' class='typing col s12'>";
+				div +=    "   <div class='avatar tooltipped' data-position='left' data-tooltip='" + user.username + "'>" + user.username.charAt(0).toLocaleUpperCase() + "</div>";
+				div +=    "   <img src='/img/typing.gif' alt='is typing.' style='margin-left: 10px; height: 50px'>";
+				div +=    "</div>";
+				
+				$("#messageArea").append(div);
+				$("#messageArea").scrollTop($("#messageArea").prop("scrollHeight"));
+				$('.tooltipped').tooltip();
+			}
+		}
+		
+		function setCookie(cname,cvalue,exdays) {
+			  var d = new Date();
+			  d.setTime(d.getTime() + (exdays*24*60*60*1000));
+			  var expires = "expires=" + d.toGMTString();
+			  document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+			}
+
+			function getCookie(cname) {
+				var name = cname + "=";
+				var decodedCookie = decodeURIComponent(document.cookie);
+				var ca = decodedCookie.split(';');
+				for(var i = 0; i < ca.length; i++) {
+					var c = ca[i];
+					while (c.charAt(0) == ' ') {
+						c = c.substring(1);
+					}
+					if (c.indexOf(name) == 0) {
+						return c.substring(name.length, c.length);
+					}
+				}
+				return "";
+			}
+			
+			function getUser() {
+				var user = getCookie("username");
+				if (user == "") {
+					user = prompt("What is your name?", "");
+					if (user != "" && user != null) {
+						setCookie("username", user, 1);
+					}
+				}
+				return user;
+			}
+  </script>
+</body>
+
+</html>
