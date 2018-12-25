@@ -6,20 +6,14 @@
 <meta charset="UTF-8">
 <title>Socket Chat</title>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="/js/jquery.min.js"></script>
 <script src="/js/socket.io.js"></script>
 	
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<link rel="stylesheet" href="/css/materialize.min.css">
+<script src="/js/materialize.min.js"></script>
 
 <!-- Custom Style -->
 <style>
-#messageArea {
-	height: 500px;
-	width: 100%;
-	overflow: auto;
-}
-
 /* Custom Scroll Bar */
 ::-webkit-scrollbar {
 	width: 3px;
@@ -35,6 +29,12 @@
 
 ::-webkit-scrollbar-thumb:hover {
 	background: #555;
+}
+
+#messageArea {
+	height: 500px;
+	width: 100%;
+	overflow: auto;
 }
 
 .avatar {
@@ -288,38 +288,38 @@
 		}
 		
 		function setCookie(cname,cvalue,exdays) {
-			  var d = new Date();
-			  d.setTime(d.getTime() + (exdays*24*60*60*1000));
-			  var expires = "expires=" + d.toGMTString();
-			  document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
-			}
-
-			function getCookie(cname) {
-				var name = cname + "=";
-				var decodedCookie = decodeURIComponent(document.cookie);
-				var ca = decodedCookie.split(';');
-				for(var i = 0; i < ca.length; i++) {
-					var c = ca[i];
-					while (c.charAt(0) == ' ') {
-						c = c.substring(1);
-					}
-					if (c.indexOf(name) == 0) {
-						return c.substring(name.length, c.length);
-					}
+			var d = new Date();
+			d.setTime(d.getTime() + (exdays*24*60*60*1000));
+			var expires = "expires=" + d.toGMTString();
+			document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+		}
+		
+		function getCookie(cname) {
+			var name = cname + "=";
+			var decodedCookie = decodeURIComponent(document.cookie);
+			var ca = decodedCookie.split(';');
+			for(var i = 0; i < ca.length; i++) {
+				var c = ca[i];
+				while (c.charAt(0) == ' ') {
+					c = c.substring(1);
 				}
-				return "";
-			}
-			
-			function getUser() {
-				var user = getCookie("username");
-				if (user == "") {
-					user = prompt("What is your name?", "");
-					if (user != "" && user != null) {
-						setCookie("username", user, 1);
-					}
+				if (c.indexOf(name) == 0) {
+					return c.substring(name.length, c.length);
 				}
-				return user;
 			}
+			return "";
+		}
+		
+		function getUser() {
+			var user = getCookie("username");
+			if (user == "") {
+				user = prompt("What is your name?", "");
+				if (user != "" && user != null) {
+					setCookie("username", user, 1);
+				}
+			}
+			return user;
+		}
   </script>
 </body>
 
