@@ -14,21 +14,21 @@ public class MessageRepositoryImpl implements MessageRepository {
 	
 	@Override
 	public boolean add(Message message) {
+		clearOldMessagesIfMoreThan(25);
 		return messages.add(message);
 	}
 
-	public void remove() {
+	public void clearOldMessagesIfMoreThan(int limit) {
 		int count = messages.size();
-		if (count <= 25) {
+		if (count <= limit-1) {
 			return;
 		}
 		messages.remove(0);
-		remove();
+		clearOldMessagesIfMoreThan(limit);
 	}
 
 	@Override
 	public List<Message> findAll() {
-		remove();
 		return messages;
 	}
 	

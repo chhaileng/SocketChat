@@ -138,6 +138,8 @@
 		var socketUrl = location.protocol + "//" + location.hostname + ":1111/chat";
 		var socket = io.connect(socketUrl);
 		
+		$("#messageText").focus();
+		
 		socket.on("connect", function() {
 			//alert("Connected");
 			$.ajax({
